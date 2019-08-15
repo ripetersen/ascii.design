@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html>
+	<head>
+	<title>ASCII Design</title>
+<style>
+* { margin:0; padding:0; } /* to remove the top and left whitespace */
+
+html, body { width:100%; height:100%; } /* just to be sure these are full screen*/
+
+canvas { 
+    position: fixed;
+    top: 0;
+    left: 0;
+    display:block; 
+}
+</style>
+	<script>
+let ctx;
+let canvas;
+let fontHeight = 40;
+let fontFamily = "Monospace";
+let charSize;
+let padding = { x:0, y:0 }
+let objects = []
+let cursor = { row:-1, col:-1}
+
+var grayscale_characters = ['\u2588', '\u2593', '\u2592', '\u2591', ' ']
+
+const NONE     = 0;
+const UP       = 1;
+const TOP      = 1;
+const DOWN     = 2;
+const BOTTOM   = 2;
+const VERTICAL = UP + DOWN;
+
+
+const LEFT       = 4;
+const RIGHT      = 8;
+const HORIZONTAL = LEFT + RIGHT;
+
+const UP_LEFT    = UP   + LEFT;
+const UP_RIGHT   = UP   + RIGHT;
+const DOWN_LEFT  = DOWN + LEFT;
+const DOWN_RIGHT = DOWN + RIGHT
+
+
+// Box styles characters
+const BOX_LEFT=0;
+const BOX_RIGHT=1;
+const BOX_TOP=2;
+const BOX_BOTTOM=3;
+const BOX_UPPER_LEFT=4;
+const BOX_UPPER_RIGHT=5;
+const BOX_LOWER_LEFT=6;
+const BOX_LOWER_RIGHT=7;
+
+const boxStyle = {
+    ascii:  "||--++++",
+    box:    "││──┌┐└┘",
+    hash:   "########",
+    matrix: "││  ┌┐└┘",
+    block:  "████████"
+}
+
+
+
+class Box {
+    constructor(row, col, width, height, style) {
+        this.style = style;
+        this.row = row;
+        this.col = col;
+        this.width = width;
+        this.height = height;
+    }
+
+    draw() {
+        drawChar(this.style[BOX_UPPER_LEFT] , this.row                  , this.col)
+        drawChar(this.style[BOX_UPPER_RIGHT], this.row                  , this.col + this.width - 1)
+        drawChar(this.style[BOX_LOWER_LEFT] , this.row + this.height - 1, this.col)
+        drawChar(this.style[BOX_LOWER_RIGHT], this.row + this.height - 1, this.col + this.width - 1)
+        for(let c=1; c<this.width-1; c++) {
+            drawChar(this.style[BOX_TOP]   , this.row                  , this.col + c);
+            drawChar(this.style[BOX_BOTTOM], this.row + this.height - 1, this.col + c);
+        }
+        for(let r=1; r<this.height-1; r++) {
+            drawChar(this.style[BOX_LEFT] , this.row + r, this.col);
+            drawChar(this.style[BOX_RIGHT], this.row + r, this.col + this.width - 1);
+        }
+    }
+}
+
+
+class Point {
+    constructor(row,col,next,previous) {
+        this.row = row;
+        this.col = col;
+        this.next = next;
+        this.previous = previous;
+    }
+
+    add(p) {
+    	this.next=p;
+    	p.previous = this;
+    	return p;
+	}
+
+	head() {
+    	let p = this;
+    	while( p.previous ) p = p.previous;
+    	return p
+	}
+
+	tail() {
+    	let p = this;
+    	while( p.next ) p = p.next;
+    	return p
+	}
+
+    /*
+    Returns the direction from this point to the next point
+     */
+    direction(next) {
+		if( !next && this.next ) {
+			next = this.next;
+		}
+
+		let direction = NONE;
+		if( next ) {
+			if( this.col > next.col ) {
+				direction += LEFT;
+			} else if ( this.col < next.col ) {
+				direction += RIGHT;
+			}
+
+			if ( this.row > next.row ) {
+				direction += UP;
+			} else if ( this.row < next.row ) {
+				direction += DOWN;
+			}
+		}
+		return direction;
+	}
+}
+
+const lineStyle = {
+	ascii: {
+		start: {},
+		line: {},
+		end: {},
+		connect: {}
+	}
+};
+lineStyle.ascii.start[UP]    = "|";
+lineStyle.ascii.start[DOWN]  = "|";
+lineStyle.ascii.start[LEFT]  = "-";
+lineStyle.ascii.start[RIGHT] = "-";
+lineStyle.ascii.line[UP]    = "|";
+lineStyle.ascii.line[DOWN]  = "|";
+lineStyle.ascii.line[LEFT]  = "-";
+lineStyle.ascii.line[RIGHT] = "-";
+lineStyle.ascii.end[UP]    = "|";
+lineStyle.ascii.end[DOWN]  = "|";
+lineStyle.ascii.end[LEFT]  = "-";
+lineStyle.ascii.end[RIGHT] = "-";
+lineStyle.ascii.connect[UP_LEFT]    = "\\";
+lineStyle.ascii.connect[UP_RIGHT]   = "/";
+lineStyle.ascii.connect[DOWN_LEFT]  = "/";
+lineStyle.ascii.connect[DOWN_RIGHT] = "\\";
+
+const moveFunction = {};
+moveFunction[UP] = p => p.row--;
+moveFunction[DOWN]  = p => p.row++;
+moveFunction[LEFT]  = p => p.col--;
+moveFunction[RIGHT] = p => p.col++;
+
+class Line {
+    constructor(start, style) {
+    	this.start = start;
+		this.style = style;
+    }
+
+    draw() {
+		const style = this.style;
+		let p = this.start;
+		let direction = p.direction();
+		let move = moveFunction[direction];
+		console.log("moveFunction : direction, func");
+		console.log(direction)
+		console.log(move)
+		console.log(style.start[direction])
+    	drawChar(style.start[direction] , p.row , p.col);
+
+		const drawLine = {};
+
+		while( p.next ) {
+			direction = p.direction();
+			drawLine.direction = direction;
+			drawLine.move = moveFunction[direction];
+			drawLine.row = p.row;
+			drawLine.col = p.col;
+			drawLine.next = function() {
+				drawChar(style.line[this.direction],this.row,this.col);
+				this.move(this);
+				return this.col != p.next.col || this.row != p.next.row;
+			}
+
+			while( drawLine.next() ) {}
+
+			// pick a direction
+			// draw the connector
+    		p = p.next;
+			if( p.next ) {
+				drawChar(style.connect[p.previous.direction(p.next)],p.row,p.col)
+			} else {
+				drawChar(style.end[-1^~direction],p.row,p.col)
+			}
+		}
+	}
+}
+
+function calculateCharacterSize() {
+    const bufferCanvas = document.createElement("canvas");
+    bufferCanvas.width = 3*fontHeight;
+    bufferCanvas.height = 3*fontHeight;
+    const bufferContext = bufferCanvas.getContext('2d');
+
+    bufferContext.font = fontHeight+'px '+fontFamily;
+    console.log(`font = ${bufferContext.font}`);
+    bufferContext.fillStyle = 'red';
+    bufferContext.textBaseline = 'top';
+
+    const width = Math.ceil(bufferContext.measureText('█').width);
+    console.log(`width = ${width}`);
+    console.log(`top = ${fontHeight}`);
+    bufferContext.fillText('█', 0, fontHeight);
+    //bufferContext.fillRect(0,fontHeight,width,fontHeight);
+
+    let imageData = bufferContext.getImageData(Math.floor(width/2), 0, 1, fontHeight*3);
+    let boundingTop = -1;
+    let boundingBottom = -1;
+
+    for(let n=0; n<fontHeight*3*4; n+=4) {
+        if(imageData.data[n]!=0) {
+            boundingTop = n/4;
+            console.log(`n = ${n}`);
+            break;
+        }
+    }
+    console.log(`boundingTop = ${boundingTop}`);
+
+    console.log(`n = ${4*(boundingTop+1)}`);
+    for(n=4*(boundingTop+1); n<fontHeight*3*4; n+=4) {
+        if(imageData.data[n]==0) {
+            boundingBottom = n/4;
+            break;
+        }
+    }
+    console.log(`boundingBottom = ${boundingBottom}`);
+    height = boundingBottom - boundingTop;
+
+    charSize = {
+        height: height,
+        width: width,
+        leading: fontHeight - boundingTop 
+    };
+    console.log(charSize);
+    return charSize;
+}
+
+function resizeCanvas(e) {
+    let dpi = window.devicePixelRatio;
+    const height = window.innerHeight;
+    canvas.style.height = height+'px';
+    canvas.height=height*dpi;
+    const width = window.innerWidth
+    canvas.style.width = width+'px';
+    canvas.width=width*dpi;
+    calculateCharacterSize();
+    redraw();
+}
+
+function col2x(col) {
+    return (charSize.width+2*padding.x)*col+padding.x+1;
+}
+
+function x2col(x) {
+    return Math.floor((x-1-padding.x)/(charSize.width+2*padding.x))
+}
+
+function row2y(row) {
+    return (charSize.height+2*padding.y)*row+padding.y+1;
+}
+
+function y2row(y) {
+    return Math.floor((y-1-padding.y)/(charSize.height+2*padding.y))
+}
+
+function drawCursor() {
+    if( cursor.row>=0 && cursor.col>=0 ) {
+        // ctx.fillStyle = 'rgba(0,0,0,.5)';
+        // ctx.fillRect(col2x(cursor.col), row2y(cursor.row), charSize.width, charSize.height);
+    }
+}
+
+function drawGrid() {
+    ctx.beginPath();
+    for(let x=1; x<canvas.width;  x += (2*padding.x + charSize.width)) {
+        ctx.moveTo(x,1);
+        ctx.lineTo(x,canvas.height);
+    }
+    for(let y=1; y<canvas.height; y += (2*padding.y + charSize.height)) {
+        ctx.moveTo(1,y);
+        ctx.lineTo(canvas.width,y);
+    }
+    ctx.strokeStyle = '#ccffff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+}
+
+function drawChar(c,row,col) {
+    ctx.fillStyle = 'white';
+    ctx.fillRect(col2x(col), row2y(row), charSize.width, charSize.height);
+    ctx.fillStyle = 'black';
+    ctx.fillText(c, col2x(col), row2y(row) + charSize.leading);
+}
+
+function drawObjects() {
+    for( let i = 0; i<objects.length; i++ ) {
+        objects[i].draw();
+    }
+}
+
+function cursorMove() {
+    drawCursor();
+}
+
+function mouseMove(e) {
+    let col = x2col(e.clientX*window.devicePixelRatio)
+    let row = y2row(e.clientY*window.devicePixelRatio)
+    if( cursor.row != row || cursor.col !=col ) {
+        cursor = { row:row, col:col }
+        cursorMove();
+    }
+}
+
+function mouseOut(e) {
+    cursor = { row:-1, col:-1}
+}
+
+function redraw() {
+    drawGrid();
+    ctx.font = fontHeight+'px '+fontFamily;
+    ctx.textBaseline = 'top';
+    drawObjects();
+}
+
+function init() {
+	canvas = document.getElementById('canvas');
+    canvas.addEventListener('mousemove',mouseMove);
+    canvas.addEventListener('mousemove',mouseMove);
+
+	ctx = canvas.getContext('2d');
+    window.addEventListener('resize',resizeCanvas);
+    resizeCanvas();
+}
+
+
+window.addEventListener('DOMContentLoaded',init);
+	</script>
+	</head>
+	<body>
+<!--
+<pre>
+This is the menu &#x2588;
+This the second line
+</pre>
+    -->
+<canvas id="canvas" width="150" height="150"></canvas>
+	</body>
+</html> 

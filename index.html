@@ -421,25 +421,36 @@ const logEventHandler = {
 }
 
 class LineDrawer {
-	cursorDown(row, col) {
-		this.line = new Line((new Point(row,col)).add(new Point(row,col)).head(),lineStyle.ascii);
-		this.line.draw();
+	straightLine(row,col) {
+		const tail = this.line.start.tail().previous;
+		const deltaR = Math.abs(tail.row - row);
+		const deltaC = Math.abs(tail.col - col);
+		if (deltaR > deltaC) {
+			col = tail.col;
+		} else {
+			row = tail.row;
+		}
+		return [row,col];
 	}
 
 	cursorClick(row, col) {
-		this.line.start.tail().add(new Point(row,col));
+		if( this.line ) {
+			[row,col] = this.straightLine(row,col);
+			console.log(`new Point(${row},${col}`);
+			this.line.start.tail().add(new Point(row,col));
+		} else {
+			console.log('start Line')
+			this.line = new Line((new Point(row,col)).add(new Point(row,col)).head(),lineStyle.ascii);
+		}
+		this.line.draw();
 	}
 
 	cursorMove(row, col) {
-		if( this.box ) {
+		if( this.line ) {
 			const tail = this.line.start.tail();
-			const deltaR = Math.abs(tail.row - row);
-			const deltaC = Math.abs(tail.col - col);
-			if (deltaR > deltaC) {
-				tail.row = row;
-			} else {
-				tail.col = col;
-			}
+			[row,col] = this.straightLine(row,col);
+			tail.row = row;
+			tail.col = col;
 			redraw();
 			this.line.draw();
 		}

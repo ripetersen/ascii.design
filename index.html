@@ -574,6 +574,13 @@ function redraw() {
     drawObjects();
 }
 
+function updateEvent(e) {
+    var rect = e.target.getBoundingClientRect();
+    e.canvasX = (e.clientX - rect.left)*window.devicePixelRatio;
+    e.canvasY = (e.clientY - rect.top )*window.devicePixelRatio;
+    return { x, y };
+}
+
 function init() {
 	canvas = document.getElementById('canvas');
     canvas.addEventListener('mousemove',mouseMove);

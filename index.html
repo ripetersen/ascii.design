@@ -8,9 +8,11 @@
 html, body { width:100%; height:100%; } /* just to be sure these are full screen*/
 
 canvas { 
+    /*
     position: fixed;
     top: 0;
     left: 0;
+        */
     display:block; 
 }
 </style>
@@ -518,12 +520,12 @@ function mouseOut(e) {
 }
 
 function mouseMove(e) {
-    let col = x2col(e.clientX*window.devicePixelRatio);
-    let row = y2row(e.clientY*window.devicePixelRatio);
+    let p = position(e);
+	let col = x2col(p.x);
+	let row = y2row(p.y);
 	if( cursor.row != row || cursor.col !=col ) {
 		cursor.row = row;
 		cursor.col = col;
-
 		cursorMove(row,col);
     }
 }
@@ -531,39 +533,45 @@ function mouseMove(e) {
 function mouseDown(e) {
 	console.log("mousedown");
 	e.preventDefault();
-	let col = x2col(e.clientX*window.devicePixelRatio);
-	let row = y2row(e.clientY*window.devicePixelRatio);
+    let p = position(e);
+	let col = x2col(p.x);
+	let row = y2row(p.y);
 	cursorDown(row,col);
 }
 function mouseUp(e) {
 	console.log("mouseup");
 	e.preventDefault();
-	let col = x2col(e.clientX*window.devicePixelRatio);
-	let row = y2row(e.clientY*window.devicePixelRatio);
+    let p = position(e);
+	let col = x2col(p.x);
+	let row = y2row(p.y);
 	cursorUp(row,col);
 }
 
 function click(e) {
 	console.log("click");
 	e.preventDefault();
-	let col = x2col(e.clientX*window.devicePixelRatio);
-	let row = y2row(e.clientY*window.devicePixelRatio);
+    let p = position(e);
+	let col = x2col(p.x);
+	let row = y2row(p.y);
 	cursorClick(row,col);
 }
 
 function touchStart(e) {
 	console.log("touchstart");
 	e.preventDefault();
-	let col = x2col(e.touches[0].clientX*window.devicePixelRatio);
-	let row = y2row(e.touches[0].clientY*window.devicePixelRatio);
+	e.preventDefault();
+    let p = position(e.touches[0]);
+	let col = x2col(p.x);
+	let row = y2row(p.y);
 	cursorDown(row,col);
 }
 
 function touchEnd(e) {
 	console.log("touchend");
 	e.preventDefault();
-	let col = x2col(e.changedTouches[0].clientX*window.devicePixelRatio);
-	let row = y2row(e.changedTouches[0].clientY*window.devicePixelRatio);
+    let p = position(e.changedTouches[0]);
+	let col = x2col(p.x);
+	let row = y2row(p.y);
 	cursorUp(row,col);
 }
 
@@ -574,10 +582,10 @@ function redraw() {
     drawObjects();
 }
 
-function updateEvent(e) {
-    var rect = e.target.getBoundingClientRect();
-    e.canvasX = (e.clientX - rect.left)*window.devicePixelRatio;
-    e.canvasY = (e.clientY - rect.top )*window.devicePixelRatio;
+function position(e) {
+    var rect = canvas.getBoundingClientRect();
+    x = (e.clientX - rect.left)*window.devicePixelRatio;
+    y = (e.clientY - rect.top )*window.devicePixelRatio;
     return { x, y };
 }
 
@@ -601,12 +609,10 @@ window.addEventListener('DOMContentLoaded',init);
 	</script>
 	</head>
 	<body>
-<!--
 <pre>
 This is the menu &#x2588;
 This the second line
 </pre>
-    -->
 <canvas id="canvas" width="150" height="150"></canvas>
 	</body>
 </html> 

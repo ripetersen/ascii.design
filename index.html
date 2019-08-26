@@ -17,6 +17,7 @@ canvas {
 }
 </style>
 	<script>
+let debug = false;
 let ctx;
 let canvas;
 let fontHeight = 40;
@@ -286,20 +287,23 @@ class Text {
 }
 
 function calculateCharacterSize() {
-    const bufferCanvas = document.createElement("canvas");
-    bufferCanvas.width = 3*fontHeight;
-    bufferCanvas.height = 3*fontHeight;
-    const bufferContext = bufferCanvas.getContext('2d');
+	let bufferCanvas = canvas;
+	if( !debug ) {
+		bufferCanvas = document.createElement("canvas");
+		bufferCanvas.width = 3*fontHeight;
+		bufferCanvas.height = 3*fontHeight;
+	}
+	const bufferContext = bufferCanvas.getContext('2d');
 
     bufferContext.font = fontHeight+'px '+fontFamily;
     console.log(`font = ${bufferContext.font}`);
     bufferContext.fillStyle = 'red';
     bufferContext.textBaseline = 'top';
 
-    const width = Math.ceil(bufferContext.measureText('█').width);
+    const width = Math.ceil(bufferContext.measureText('\u2588').width);
     console.log(`width = ${width}`);
     console.log(`top = ${fontHeight}`);
-    bufferContext.fillText('█', 0, fontHeight);
+    bufferContext.fillText('\u2588', 0, fontHeight);
     //bufferContext.fillRect(0,fontHeight,width,fontHeight);
 
     let imageData = bufferContext.getImageData(Math.floor(width/2), 0, 1, fontHeight*3);
@@ -574,7 +578,6 @@ function touchEnd(e) {
 	let row = y2row(p.y);
 	cursorUp(row,col);
 }
-
 
 function redraw() {
 	canvas.width = canvas.width;

@@ -8,15 +8,29 @@
 html, body { width:100%; height:100%; } /* just to be sure these are full screen*/
 
 canvas { 
-    /*
-    position: fixed;
-    top: 0;
-    left: 0;
-        */
-    display:block; 
+    display:block;
 }
+
+.menu object {
+	display: inline-block;
+	width: 32px;
+	height: 32px;
+}
+
+.menu object:hover {
+	background-color: yellow;
+}
+
+.menu object:hover svg{
+	stroke-color: yellow;
+}
+
+
+
+
+
 </style>
-	<script>
+		<script>
 let debug = false;
 let ctx;
 let canvas;
@@ -612,10 +626,10 @@ window.addEventListener('DOMContentLoaded',init);
 	</script>
 	</head>
 	<body>
-<pre>
-This is the menu &#x2588;
-This the second line
-</pre>
+<div class="menu">
+	<object type="image/svg+xml" data="box.svg"></object>
+	<object type="image/svg+xml" data="line.svg"></object>
+</div>
 <canvas id="canvas" width="150" height="150"></canvas>
 	</body>
 </html> 

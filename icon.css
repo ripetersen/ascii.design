@@ -3,5 +3,5 @@ path {
 }
 
 svg:hover path {
-    stroke: yellow;
+    stroke: gray;
 }

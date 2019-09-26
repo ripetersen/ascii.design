@@ -2,6 +2,7 @@
 <html>
 	<head>
 	<title>ASCII Design</title>
+    <link rel="stylesheet" type="text/css" href="canvas.css"> 
 <style>
 * { margin:0; padding:0; } /* to remove the top and left whitespace */
 
@@ -12,9 +13,9 @@ canvas {
 }
 
 .menu {
-	box-shadow: 0 0 10px rgba(0, 0, 0, 1);
+	box-shadow: 0 0 15px rgba(0, 0, 0, 1);
+    backdrop-filter: blur(1px);
 	z-index: 100;
-	background: rgba(255,255,255,0.75);
 	width: 100%;
 	position: fixed;
 }
@@ -30,6 +31,7 @@ canvas {
 let debug = false;
 let ctx;
 let canvas;
+let canvasStyle;
 let fontHeight = 40;
 let fontFamily = "Monospace";
 let charSize;
@@ -305,7 +307,8 @@ function calculateCharacterSize() {
 	}
 	const bufferContext = bufferCanvas.getContext('2d');
 
-    bufferContext.font = fontHeight+'px '+fontFamily;
+//    bufferContext.font = fontHeight+'px '+fontFamily;
+    bufferContext.font = getStyle('font');
     console.log(`font = ${bufferContext.font}`);
     bufferContext.fillStyle = 'red';
     bufferContext.textBaseline = 'top';
@@ -393,9 +396,15 @@ function drawGrid() {
         ctx.moveTo(1,y);
         ctx.lineTo(canvas.width,y);
     }
-    ctx.strokeStyle = '#ccffff';
+    ctx.strokeStyle = getStyle('border-color')
     ctx.lineWidth = 2;
     ctx.stroke();
+}
+
+function getStyle(property) {
+    const value = canvasStyle.get(property).toString();
+    console.log(`${property}: ${value}`);
+    return value;
 }
 
 function drawString(s,row,col) {
@@ -434,6 +443,12 @@ const logEventHandler = {
 	cursorUp:    (row,col) => console.log(`cursorUp(${row},${col})`),
 	cursorClick: (row,col) => console.log(`cursorClick(${row},${col})`),
 	cursorMove:  (row,col) => console.log(`cursorMove(${row},${col})`)
+}
+const nullEventHandler = {
+    cursorDown:  (row,col) => {},
+    cursorUp:    (row,col) => {},
+    cursorClick: (row,col) => {},
+    cursorMove:  (row,col) => {}
 }
 
 class LineDrawer {
@@ -503,7 +518,7 @@ class BoxDrawer {
 
 lineEventHandler = new LineDrawer();
 boxEventHandler = new BoxDrawer();
-eventHandler = logEventHandler;
+eventHandler = nullEventHandler;
 
 function cursorMove(row,col) {
 	if( eventHandler && eventHandler.cursorMove ) {
@@ -612,6 +627,8 @@ function init() {
 	canvas.addEventListener('touchstart',touchStart);
 	canvas.addEventListener('touchend',touchEnd);
 
+    canvasStyle = document.querySelector("#canvasStyle").computedStyleMap();
+    
 	ctx = canvas.getContext('2d');
     window.addEventListener('resize',resizeCanvas);
     resizeCanvas();
@@ -627,5 +644,8 @@ window.addEventListener('DOMContentLoaded',init);
 	<object type="image/svg+xml" data="line.svg"></object>
 </div>
 <canvas id="canvas" width="150" height="150"></canvas>
+<div id="canvasStyle">
+    <div id="grid"></div>
+</div>
 	</body>
 </html> 

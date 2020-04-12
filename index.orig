@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html>
+	<head>
+	<title>ASCII Design</title>
+<style>
+* { margin:0; padding:0; } /* to remove the top and left whitespace */
+
+html, body { width:100%; height:100%; } /* just to be sure these are full screen*/
+
+canvas { 
+    display:block;
+}
+
+.menu {
+	box-shadow: 0 0 10px rgba(0, 0, 0, 1);
+	z-index: 100;
+	background: rgba(255,255,255,0.75);
+	width: 100%;
+	position: fixed;
+}
+
+.menu object {
+	display: inline-block;
+	width: 32px;
+	height: 32px;
+}
+
+</style>
+		<script>
+let debug = false;
+let ctx;
+let canvas;
+let fontHeight = 40;
+let fontFamily = "Monospace";
+let charSize;
+let padding = { x:0, y:0 }
+let objects = []
+let cursor = { row:-1, col:-1}
+
+var grayscale_characters = ['\u2588', '\u2593', '\u2592', '\u2591', ' ']
+
+const NONE     = 0;
+const UP       = 1;
+const TOP      = 1;
+const DOWN     = 2;
+const BOTTOM   = 2;
+const VERTICAL = UP + DOWN;
+
+const LEFT       = 4;
+const RIGHT      = 8;
+const HORIZONTAL = LEFT + RIGHT;
+
+const UP_LEFT      = UP     + LEFT;
+const UP_RIGHT     = UP     + RIGHT;
+const DOWN_LEFT    = DOWN   + LEFT;
+const DOWN_RIGHT   = DOWN   + RIGHT
+const TOP_LEFT     = TOP    + LEFT;
+const TOP_RIGHT    = TOP    + RIGHT;
+const BOTTOM_LEFT  = BOTTOM + LEFT;
+const BOTTOM_RIGHT = BOTTOM + RIGHT
+
+// Box styles characters
+const BOX_LEFT=0;
+const BOX_RIGHT=1;
+const BOX_TOP=2;
+const BOX_BOTTOM=3;
+const BOX_UPPER_LEFT=4;
+const BOX_UPPER_RIGHT=5;
+const BOX_LOWER_LEFT=6;
+const BOX_LOWER_RIGHT=7;
+
+const boxStyle = {
+    ascii:  "||--++++",
+    box:    "││──┌┐└┘",
+    hash:   "########",
+    matrix: "││  ┌┐└┘",
+    block:  "████████"
+}
+
+class Box {
+    constructor(row, col, width, height, style) {
+        this.style = style;
+        this.row = row;
+        this.col = col;
+        this.width = width;
+        this.height = height;
+    }
+
+    draw() {
+        drawChar(this.style[BOX_UPPER_LEFT] , this.row                  , this.col)
+        drawChar(this.style[BOX_UPPER_RIGHT], this.row                  , this.col + this.width - 1)
+        drawChar(this.style[BOX_LOWER_LEFT] , this.row + this.height - 1, this.col)
+        drawChar(this.style[BOX_LOWER_RIGHT], this.row + this.height - 1, this.col + this.width - 1)
+        for(let c=1; c<this.width-1; c++) {
+            drawChar(this.style[BOX_TOP]   , this.row                  , this.col + c);
+            drawChar(this.style[BOX_BOTTOM], this.row + this.height - 1, this.col + c);
+        }
+        for(let r=1; r<this.height-1; r++) {
+            drawChar(this.style[BOX_LEFT] , this.row + r, this.col);
+            drawChar(this.style[BOX_RIGHT], this.row + r, this.col + this.width - 1);
+        }
+    }
+}
+
+
+class Point {
+    constructor(row,col,next,previous) {
+        this.row = row;
+        this.col = col;
+        this.next = next;
+        this.previous = previous;
+    }
+
+    add(p) {
+    	this.next=p;
+    	p.previous = this;
+    	return p;
+	}
+
+	head() {
+    	let p = this;
+    	while( p.previous ) p = p.previous;
+    	return p
+	}
+
+	tail() {
+    	let p = this;
+    	while( p.next ) p = p.next;
+    	return p
+	}
+
+	corner() {
+    	return this.previous.direction(this) + this.next.direction(this);
+	}
+
+    /*
+    Returns the direction from this point to the next point
+     */
+    direction(next) {
+		if( !next && this.next ) {
+			next = this.next;
+		}
+
+		let direction = NONE;
+		if( next ) {
+			if( this.col > next.col ) {
+				direction += LEFT;
+			} else if ( this.col < next.col ) {
+				direction += RIGHT;
+			}
+
+			if ( this.row > next.row ) {
+				direction += UP;
+			} else if ( this.row < next.row ) {
+				direction += DOWN;
+			}
+		}
+		return direction;
+	}
+}
+
+const lineStyle = {}
+lineStyle.ascii = {start: {}, line: {}, end: {}, connect: {}};
+lineStyle.ascii.start[NONE]           = "+";
+lineStyle.ascii.start[UP]             = "|";
+lineStyle.ascii.start[DOWN]           = "|";
+lineStyle.ascii.start[LEFT]           = "-";
+lineStyle.ascii.start[RIGHT]          = "-";
+lineStyle.ascii.line[UP]              = "|";
+lineStyle.ascii.line[DOWN]            = "|";
+lineStyle.ascii.line[LEFT]            = "-";
+lineStyle.ascii.line[RIGHT]           = "-";
+lineStyle.ascii.end[UP]               = "|";
+lineStyle.ascii.end[DOWN]             = "|";
+lineStyle.ascii.end[LEFT]             = "-";
+lineStyle.ascii.end[RIGHT]            = "-";
+lineStyle.ascii.connect[TOP_LEFT]     = "+";
+lineStyle.ascii.connect[TOP_RIGHT]    = "+";
+lineStyle.ascii.connect[BOTTOM_RIGHT] = "+";
+lineStyle.ascii.connect[BOTTOM_LEFT]  = "+";
+lineStyle.ascii_round = {start: {}, line: {}, end: {}, connect: {}};
+lineStyle.ascii_round.start[UP]             = "|";
+lineStyle.ascii_round.start[DOWN]           = "|";
+lineStyle.ascii_round.start[LEFT]           = "-";
+lineStyle.ascii_round.start[RIGHT]          = "-";
+lineStyle.ascii_round.line[UP]              = "|";
+lineStyle.ascii_round.line[DOWN]            = "|";
+lineStyle.ascii_round.line[LEFT]            = "-";
+lineStyle.ascii_round.line[RIGHT]           = "-";
+lineStyle.ascii_round.end[UP]               = "|";
+lineStyle.ascii_round.end[DOWN]             = "|";
+lineStyle.ascii_round.end[LEFT]             = "-";
+lineStyle.ascii_round.end[RIGHT]            = "-";
+lineStyle.ascii_round.connect[TOP_LEFT]     = "/";
+lineStyle.ascii_round.connect[TOP_RIGHT]    = "\\";
+lineStyle.ascii_round.connect[BOTTOM_RIGHT] = "/";
+lineStyle.ascii_round.connect[BOTTOM_LEFT]  = "\\";
+lineStyle.box = {start: {}, line: {}, end: {}, connect: {}};
+lineStyle.box.start[UP]             = "┴";
+lineStyle.box.start[DOWN]           = "┬";
+lineStyle.box.start[LEFT]           = "┤";
+lineStyle.box.start[RIGHT]          = "├";
+lineStyle.box.line[UP]              = "│";
+lineStyle.box.line[DOWN]            = "│";
+lineStyle.box.line[LEFT]            = "─";
+lineStyle.box.line[RIGHT]           = "─";
+lineStyle.box.end[UP]               = "┴";
+lineStyle.box.end[DOWN]             = "┬";
+lineStyle.box.end[LEFT]             = "┤";
+lineStyle.box.end[RIGHT]            = "├";
+lineStyle.box.connect[TOP_LEFT]     = "┌";
+lineStyle.box.connect[TOP_RIGHT]    = "┐";
+lineStyle.box.connect[BOTTOM_RIGHT] = "┘";
+lineStyle.box.connect[BOTTOM_LEFT]  = "└";
+lineStyle.block = {start: {}, line: {}, end: {}, connect: {}};
+lineStyle.block.start[UP]             = "█";
+lineStyle.block.start[DOWN]           = "█";
+lineStyle.block.start[LEFT]           = "█";
+lineStyle.block.start[RIGHT]          = "█";
+lineStyle.block.line[UP]              = "█";
+lineStyle.block.line[DOWN]            = "█";
+lineStyle.block.line[LEFT]            = "█";
+lineStyle.block.line[RIGHT]           = "█";
+lineStyle.block.end[UP]               = "█";
+lineStyle.block.end[DOWN]             = "█";
+lineStyle.block.end[LEFT]             = "█";
+lineStyle.block.end[RIGHT]            = "█";
+lineStyle.block.connect[TOP_LEFT]     = "█";
+lineStyle.block.connect[TOP_RIGHT]    = "█";
+lineStyle.block.connect[BOTTOM_RIGHT] = "█";
+lineStyle.block.connect[BOTTOM_LEFT]  = "█";
+
+const moveFunction = {};
+moveFunction[NONE] = p => false;
+moveFunction[UP] = p => p.row--;
+moveFunction[DOWN]  = p => p.row++;
+moveFunction[LEFT]  = p => p.col--;
+moveFunction[RIGHT] = p => p.col++;
+
+class Line {
+    constructor(start, style) {
+    	this.start = start;
+		this.style = style;
+    }
+
+    draw() {
+      const style = this.style;
+      let p = this.start;
+      const drawLine = {};
+
+      while( p ) {
+        drawLine.direction = p.direction();
+        if( drawLine.direction ) {
+          drawLine.move = moveFunction[drawLine.direction];
+          drawLine.row = p.row;
+          drawLine.col = p.col;
+          if( p.next ) {
+            if( p.previous ) {
+              drawChar(style.connect[p.corner()],p.row,p.col)
+            } else {
+              drawChar(style.start[drawLine.direction] , p.row , p.col);
+            }
+            drawLine.next = function() {
+              drawChar(style.line[this.direction],this.row,this.col);
+              this.move(this);
+              return this.col != p.next.col || this.row != p.next.row;
+            };
+            drawLine.move(drawLine);
+          } else {
+            drawChar(style.end[p.direction(p.previous)],p.row,p.col)
+            drawLine.next = function() { return false; }
+          }
+
+          while( drawLine.next() ) {}
+        }
+        p = p.next;
+      }
+	}
+}
+
+class Buffer {
+  constructor(backgroundChar = ' ') {
+    this.backgroundChar = backgroundChar
+    this.rows = new Map()
+    this.width = 0
+    this.height = 0
+  }
+
+  putChar(c, row, col) {
+    if( !this.rows.has(row) ) {
+      this.rows.set(row, new Map())
+    }
+    this.rows.get(row).set(col, c)
+    this.height = Math.max(this.height, row+1)
+    this.width = Math.max(this.width, col+1)
+  }
+
+  getChar(row, col) {
+    return this.rows.has(row) && this.rows.get(row).has(col) ?
+        this.rows.get(row).get(col) : this.backgroundChar 
+  }
+
+  toString() {
+    let s = ''
+    for( let r = 0; r < this.height; r++ ) {
+      for( let c = 0; c < this.width; c++ ) {
+          s = s + this.getChar(r, c)
+      }
+      s = s + '\n'
+    }
+    return s
+  }
+}
+
+class Paper {
+}
+
+const NORTH = 0b1100
+const SOUTH = 0b0100
+const EAST  = 0b0001
+const WEST  = 0b0011
+
+const BOX = new Map()
+BOX.set(NORTH,               "│")
+BOX.set(SOUTH,               "│")
+BOX.set(EAST,                "─")
+BOX.set(WEST,                "─")
+BOX.set(NORTH<<4 ||  EAST,   "┌")
+BOX.set(WEST<<4  ||  SOUTH,  "┌")
+BOX.set(SOUTH<<4 ||  EAST,   "└")
+BOX.set(WEST<<4  ||  NORTH,  "└")
+BOX.set(EAST<<4  ||  SOUTH,  "┐")
+BOX.set(NORTH<<4 ||  WEST,   "┐")
+BOX.set(EAST<<4  ||  NORTH,  "┘")
+BOX.set(SOUTH<<4 ||  WEST,   "┘")
+
+const ASCII = new Map()
+ASCII.set(NORTH,               "|")
+ASCII.set(SOUTH,               "|")
+ASCII.set(EAST,                "-")
+ASCII.set(WEST,                "-")
+ASCII.set(NORTH<<4 ||  EAST,   "+")
+ASCII.set(WEST<<4  ||  SOUTH,  "+")
+ASCII.set(SOUTH<<4 ||  EAST,   "+")
+ASCII.set(WEST<<4  ||  NORTH,  "+")
+ASCII.set(EAST<<4  ||  SOUTH,  "+")
+ASCII.set(NORTH<<4 ||  WEST,   "+")
+ASCII.set(EAST<<4  ||  NORTH,  "+")
+ASCII.set(SOUTH<<4 ||  WEST,   "+")
+
+const ASCII_ROUND = new Map()
+ASCII.set(NORTH,               "|")
+ASCII.set(SOUTH,               "|")
+ASCII.set(EAST,                "-")
+ASCII.set(WEST,                "-")
+ASCII.set(NORTH<<4 ||  EAST,   "/")
+ASCII.set(WEST<<4  ||  SOUTH,  "/")
+ASCII.set(SOUTH<<4 ||  EAST,   "\\")
+ASCII.set(WEST<<4  ||  NORTH,  "\\")
+ASCII.set(EAST<<4  ||  SOUTH,  "\\")
+ASCII.set(NORTH<<4 ||  WEST,   "\\")
+ASCII.set(EAST<<4  ||  NORTH,  "/")
+ASCII.set(SOUTH<<4 ||  WEST,   "/")
+
+const BLOCK = new Map()
+BLOCK.set(NORTH,               "█")
+BLOCK.set(SOUTH,               "█")
+BLOCK.set(EAST,                "█")
+BLOCK.set(WEST,                "█")
+BLOCK.set(NORTH<<4 ||  EAST,   "█")
+BLOCK.set(WEST<<4  ||  SOUTH,  "█")
+BLOCK.set(SOUTH<<4 ||  EAST,   "█")
+BLOCK.set(WEST<<4  ||  NORTH,  "█")
+BLOCK.set(EAST<<4  ||  SOUTH,  "█")
+BLOCK.set(NORTH<<4 ||  WEST,   "█")
+BLOCK.set(EAST<<4  ||  NORTH,  "█")
+BLOCK.set(SOUTH<<4 ||  WEST,   "█")
+
+class Turtle {
+  constructor() {
+    this.row = 0
+    this.col = 0
+    this.direction = EAST
+    this.buffer = new Buffer()
+    this.characterSet = BOX
+  }
+
+  putChar(c) {
+    this.buffer.putChar(c, this.row, this.col) 
+  }
+
+  step(steps=1) { 
+    let d = this.direction >> 2
+    let vertical_step = (0b1 & d) * ((0b10 & d)*-1 + 1)
+    this.row += steps * vertical_step
+
+    d = this.direction & 0b11
+    let horizontal_step = (0b1 & d) * ((0b10 & d)*-1 + 1)
+    this.col += steps * horizontal_step
+    return this
+  }
+
+  goto(row, col) {
+    this.row = row
+    this.col = col
+    return this
+  }
+
+  face(direction) { 
+    this.direction = direction
+    return this
+  }
+
+  turn(direction) {
+    this.putChar(this.characterSet.get(this.direction<<4 || direction))
+    this.direction = direction
+    this.step()
+    return this
+  }
+  
+  write(s) {
+    for( let c of s ) {
+      this.putChar(c)
+      this.step()
+    }
+    return this
+  }
+}
+
+class Text {
+	constructor(text, row, col, style, backgroundStyle) {
+		this.text = text;
+		this.row = row;
+		this.col = col;
+		this.style = style;
+		this.backgroundStyle = backgroundStyle;
+	}
+
+	draw() {
+		drawChar(this.text, this.row, this.col, this.style, this.backgroundStyle);
+	}
+}
+
+function calculateCharacterSize() {
+	let bufferCanvas = canvas;
+	if( !debug ) {
+		bufferCanvas = document.createElement("canvas");
+		bufferCanvas.width = 3*fontHeight;
+		bufferCanvas.height = 3*fontHeight;
+	}
+	const bufferContext = bufferCanvas.getContext('2d');
+
+    bufferContext.font = fontHeight+'px '+fontFamily;
+    console.log(`font = ${bufferContext.font}`);
+    bufferContext.fillStyle = 'red';
+    bufferContext.textBaseline = 'top';
+
+    const width = Math.ceil(bufferContext.measureText('\u2588').width);
+    console.log(`width = ${width}`);
+    console.log(`top = ${fontHeight}`);
+    bufferContext.fillText('\u2588', 0, fontHeight);
+    //bufferContext.fillRect(0,fontHeight,width,fontHeight);
+
+    let imageData = bufferContext.getImageData(Math.floor(width/2), 0, 1, fontHeight*3);
+    let boundingTop = -1;
+    let boundingBottom = -1;
+
+    for(let n=0; n<fontHeight*3*4; n+=4) {
+        if(imageData.data[n]!=0) {
+            boundingTop = n/4;
+            console.log(`n = ${n}`);
+            break;
+        }
+    }
+    console.log(`boundingTop = ${boundingTop}`);
+
+    console.log(`n = ${4*(boundingTop+1)}`);
+    for(n=4*(boundingTop+1); n<fontHeight*3*4; n+=4) {
+        if(imageData.data[n]==0) {
+            boundingBottom = n/4;
+            break;
+        }
+    }
+    console.log(`boundingBottom = ${boundingBottom}`);
+    height = boundingBottom - boundingTop;
+
+    charSize = {
+        height: height,
+        width: width,
+        leading: fontHeight - boundingTop 
+    };
+    console.log(charSize);
+    return charSize;
+}
+
+function resizeCanvas(e) {
+    let dpi = window.devicePixelRatio;
+    const height = window.innerHeight;
+    canvas.style.height = height+'px';
+    canvas.height=height*dpi;
+    const width = window.innerWidth
+    canvas.style.width = width+'px';
+    canvas.width=width*dpi;
+    calculateCharacterSize();
+    redraw();
+}
+
+function col2x(col) {
+    return (charSize.width+2*padding.x)*col+padding.x+1;
+}
+
+function x2col(x) {
+    return Math.floor((x-1-padding.x)/(charSize.width+2*padding.x))
+}
+
+function row2y(row) {
+    return (charSize.height+2*padding.y)*row+padding.y+1;
+}
+
+function y2row(y) {
+    return Math.floor((y-1-padding.y)/(charSize.height+2*padding.y))
+}
+
+function drawCursor() {
+    if( cursor.row>=0 && cursor.col>=0 ) {
+        ctx.fillStyle = 'rgba(0,0,0,.5)';
+        ctx.fillRect(col2x(cursor.col), row2y(cursor.row), charSize.width, charSize.height);
+    }
+}
+
+function drawGrid() {
+    ctx.beginPath();
+    for(let x=1; x<canvas.width;  x += (2*padding.x + charSize.width)) {
+        ctx.moveTo(x,1);
+        ctx.lineTo(x,canvas.height);
+    }
+    for(let y=1; y<canvas.height; y += (2*padding.y + charSize.height)) {
+        ctx.moveTo(1,y);
+        ctx.lineTo(canvas.width,y);
+    }
+    ctx.strokeStyle = '#ccffff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+}
+
+function drawString(s,row,col) {
+}
+
+function drawChar(c, row0, col0, style, backgroundStyle) {
+	let col = col0;
+	let row = row0;
+	for( let i=0; i<c.length; i++ ) {
+		if( c[i] == "\n" ) {
+			row++;
+			col = col0;
+			continue;
+		}
+		const x = col2x(col);
+		const y = row2y(row);
+		ctx.fillStyle = backgroundStyle || 'white';
+		ctx.fillRect(x, y, charSize.width, charSize.height);
+		ctx.fillStyle = style || 'black';
+		ctx.font = fontHeight+'px '+fontFamily;
+		ctx.textBaseline = 'top';
+		ctx.fillText(c[i], x, y + charSize.leading);
+		col++;
+	}
+}
+
+function drawObjects() {
+    for( let i = 0; i<objects.length; i++ ) {
+        objects[i].draw();
+    }
+}
+
+const logEventHandler = {
+	cursorDown:  (row,col) => console.log(`cursorDown(${row},${col})`),
+	cursorUp:    (row,col) => console.log(`cursorUp(${row},${col})`),
+	cursorClick: (row,col) => console.log(`cursorClick(${row},${col})`),
+	cursorMove:  (row,col) => console.log(`cursorMove(${row},${col})`)
+}
+
+class LineDrawer {
+	straightLine(row,col) {
+		const tail = this.line.start.tail().previous;
+		const deltaR = Math.abs(tail.row - row);
+		const deltaC = Math.abs(tail.col - col);
+		if (deltaR > deltaC) {
+			col = tail.col;
+		} else {
+			row = tail.row;
+		}
+		return [row,col];
+	}
+
+	cursorClick(row, col) {
+		if( this.line ) {
+			[row,col] = this.straightLine(row,col);
+			console.log(`new Point(${row},${col}`);
+			this.line.start.tail().add(new Point(row,col));
+		} else {
+			console.log('start Line')
+			this.line = new Line((new Point(row,col)).add(new Point(row,col)).head(),lineStyle.ascii);
+		}
+		this.line.draw();
+	}
+
+	cursorMove(row, col) {
+		if( this.line ) {
+			const tail = this.line.start.tail();
+			[row,col] = this.straightLine(row,col);
+			tail.row = row;
+			tail.col = col;
+			redraw();
+			this.line.draw();
+		}
+	}
+}
+
+class BoxDrawer {
+	cursorDown(row, col) {
+		this.box = new Box(row,col,1,1,boxStyle.ascii);
+		this.box.draw();
+	}
+
+	cursorMove(row, col) {
+		if( this.box ) {
+			this.box.height = 1 + row - this.box.row;
+			this.box.width  = 1 + col - this.box.col;
+			redraw();
+			this.box.draw();
+		}
+	}
+
+	cursorUp(row,col) {
+		if( this.box ) {
+			this.box.height = 1 + row - this.box.row;
+			this.box.width  = 1 + col - this.box.col;
+			redraw();
+			this.box.draw();
+			objects.push(this.box);
+		}
+		this.box = null;
+	}
+}
+
+lineEventHandler = new LineDrawer();
+boxEventHandler = new BoxDrawer();
+eventHandler = logEventHandler;
+
+function cursorMove(row,col) {
+	if( eventHandler && eventHandler.cursorMove ) {
+		eventHandler.cursorMove(row,col);
+	}
+}
+
+function cursorDown(row,col) {
+	if( eventHandler && eventHandler.cursorDown ) {
+		eventHandler.cursorDown(row,col);
+	}
+}
+
+function cursorUp(row,col) {
+	if( eventHandler && eventHandler.cursorUp ) {
+		eventHandler.cursorUp(row,col);
+	}
+}
+
+function cursorClick(row,col) {
+	if( eventHandler && eventHandler.cursorClick ) {
+		eventHandler.cursorClick(row,col);
+	}
+}
+
+function mouseOut(e) {
+	cursor = { row:-1, col:-1}
+}
+
+function mouseMove(e) {
+  let p = position(e);
+	let col = x2col(p.x);
+	let row = y2row(p.y);
+	if( cursor.row != row || cursor.col !=col ) {
+		cursor.row = row;
+		cursor.col = col;
+		cursorMove(row,col);
+  }
+}
+
+function mouseDown(e) {
+	e.preventDefault();
+  let p = position(e);
+	let col = x2col(p.x);
+	let row = y2row(p.y);
+	cursorDown(row,col);
+}
+function mouseUp(e) {
+	e.preventDefault();
+  let p = position(e);
+	let col = x2col(p.x);
+	let row = y2row(p.y);
+	cursorUp(row,col);
+}
+
+function click(e) {
+	e.preventDefault();
+  let p = position(e);
+	let col = x2col(p.x);
+	let row = y2row(p.y);
+	cursorClick(row,col);
+}
+
+function touchStart(e) {
+	e.preventDefault();
+  let p = position(e.touches[0]);
+	let col = x2col(p.x);
+	let row = y2row(p.y);
+	cursorDown(row,col);
+}
+
+function touchEnd(e) {
+	e.preventDefault();
+  let p = position(e.changedTouches[0]);
+	let col = x2col(p.x);
+	let row = y2row(p.y);
+	cursorUp(row,col);
+}
+
+function touchMove(e) {
+	e.preventDefault();
+  let p = position(e.changedTouches[0]);
+	let col = x2col(p.x);
+	let row = y2row(p.y);
+	if( cursor.row != row || cursor.col !=col ) {
+		cursor.row = row;
+		cursor.col = col;
+		cursorMove(row,col);
+  }
+}
+
+function redraw() {
+	canvas.width = canvas.width;
+    drawGrid();
+    drawObjects();
+}
+
+function position(e) {
+    var rect = canvas.getBoundingClientRect();
+    x = (e.clientX - rect.left)*window.devicePixelRatio;
+    y = (e.clientY - rect.top )*window.devicePixelRatio;
+    return { x, y };
+}
+
+function init() {
+	canvas = document.getElementById('canvas');
+  canvas.addEventListener('mousemove',mouseMove);
+  canvas.addEventListener('mouseout',mouseOut);
+	canvas.addEventListener('click',click);
+	canvas.addEventListener('mousedown',mouseDown);
+	canvas.addEventListener('mouseup',mouseUp);
+	canvas.addEventListener('touchstart',touchStart);
+	canvas.addEventListener('touchend',touchEnd);
+	canvas.addEventListener('touchmove',touchMove);
+
+	ctx = canvas.getContext('2d');
+    window.addEventListener('resize',resizeCanvas);
+    resizeCanvas();
+}
+
+
+window.addEventListener('DOMContentLoaded',init);
+	</script>
+	</head>
+	<body>
+<div class="menu">
+	<object type="image/svg+xml" data="box.svg"></object>
+	<object type="image/svg+xml" data="line.svg"></object>
+</div>
+<canvas id="canvas" width="150" height="150"></canvas>
+	</body>
+</html> 

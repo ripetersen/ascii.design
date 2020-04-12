@@ -2,22 +2,19 @@
 <?xml-stylesheet href="menu-icon.css" type="text/css"?>
 <svg
    xmlns="http://www.w3.org/2000/svg"
-   width="512"
-   height="512"
    version="1.1"
-   id="svg16">
+   viewBox="0 0 128 128"
+   id="box_icon">
   <g
-     style="stroke-width:33.86666625;stroke-miterlimit:4;stroke-dasharray:none"
-     id="layer1"
-     transform="translate(0,-161.53332)">
+     id="layer1">
     <rect
        id="rect18"
-       width="101.6"
-       height="101.6"
-       x="16.933332"
-       y="178.46664"
-       style="fill:none;stroke-width:33.86666625;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-       ry="8.4666662"
-       rx="8.4666662" />
+       width="112"
+       height="112"
+       x="8"
+       y="8"
+       ry="16"
+       rx="16" 
+       style="fill:none;stroke:black;stroke-width:18;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none" />
   </g>
 </svg>

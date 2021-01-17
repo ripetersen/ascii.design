@@ -16,6 +16,8 @@ canvas {
   padding-left: 6px;
   padding-top: 4px;
 	box-shadow: 0 0 10px rgba(0, 0, 0, 1);
+  background: rgba(255, 255, 255, 0.5);
+	backdrop-filter: blur(1px);
 	z-index: 100;
 	width: 100%;
 	position: fixed;
@@ -31,6 +33,11 @@ canvas {
 	height: 32px;
 }
 
+.menu .icon.selected {
+  filter: invert(100%);
+  background: white;
+}
+
 .menu .icon:hover {
   border: 2px solid #7c7c7c
 }
@@ -39,6 +46,7 @@ canvas {
 	</head>
 	<body>
     <div class="menu">
+      <img type="image/svg+xml" src="cursor.svg" class="icon" data-tool="SelectTool" />
       <img type="image/svg+xml" src="box.svg" class="icon" data-tool="BoxTool" />
       <img type="image/svg+xml" src="line.svg" class="icon" data-tool="LineTool"  />
       <img type="image/svg+xml" src="pen.svg" class="icon" data-tool="PenTool" />

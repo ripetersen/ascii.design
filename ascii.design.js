@@ -7,6 +7,9 @@ const SOUTH = 0b0100
 const EAST  = 0b0001
 const WEST  = 0b0011
 
+const VERT  = 0b0100
+const HORZ  = 0b0001
+
 const LEFT  = 0
 const RIGHT = 1
 const TURNS = new Map()
@@ -117,21 +120,21 @@ class Buffer {
         this.height = 0
     }
 
-    putchar(c, row, col) {
+    put(o, row, col) {
         if( !this.rows.has(row) ) {
             this.rows.set(row, new Map())
         }
-        this.rows.get(row).set(col, c)
+        this.rows.get(row).set(col, o)
         this.height = Math.max(this.height, row+1)
         this.width = Math.max(this.width, col+1)
     }
 
-    getchar(row, col) {
+    get(row, col) {
         return this.rows.has(row) && this.rows.get(row).has(col) ?
             this.rows.get(row).get(col) : this.backgroundChar 
     }
 
-    haschar(row, col) {
+    has(row, col) {
         return this.rows.has(row) && this.rows.get(row).has(col) 
     }
 
@@ -139,7 +142,7 @@ class Buffer {
         let s = ''
         for( let r = 0; r < this.height; r++ ) {
           for( let c = 0; c < this.width; c++ ) {
-              s = s + this.getchar(r, c)
+              s = s + this.get(r, c)
           }
           s = s + '\n'
         }
@@ -192,7 +195,15 @@ class Turtle {
     }
 
     draw(length=1) {
+        const reverse = length < 0
+        if( reverse ) {
+            length = -length
+            this.direction = (this.direction | (this.direction & 0b0101)<<1) & (this.direction ^ 0b1010)
+        }
         this.write(this.characterSet.get(this.direction).repeat(length))
+        if( reverse ) {
+            this.direction = (this.direction | (this.direction & 0b0101)<<1) & (this.direction ^ 0b1010)
+        }
         return this
     }
 
@@ -203,20 +214,6 @@ class Turtle {
     go(direction) {
         return this.direction == direction ? this.draw() : this.face(direction)
     }
-}
-
-class Text {
-	constructor(text, row, col, style, backgroundStyle) {
-		this.text = text;
-		this.row = row;
-		this.col = col;
-		this.style = style;
-		this.backgroundStyle = backgroundStyle;
-	}
-
-	draw() {
-		drawChar(this.text, this.row, this.col, this.style, this.backgroundStyle);
-	}
 }
 
 class LineDrawer {
@@ -283,8 +280,8 @@ class BoxDrawer {
 	}
 }
 
+class SelectTool {}
 class PenTool {}
-class TextTool {}
 class LineTool {}
 class Line {
     constructor(row0, col0, row1, col1) {
@@ -316,13 +313,108 @@ class Line {
     }
 }
 
+class TextTool {
+    constructor(paper) {
+        this.paper = paper
+        this.composing = false;
+        this.charPos = 0;
+    }
+
+    cursorClick(e) { 
+        this.text = new Text(e.row, e.col)
+    }
+
+    keydown(e){
+        if( this.text ) {
+            switch( e.key ) {
+                case 'ArrowUp':
+                    break;
+                case 'ArrowDown':
+                    break;
+                case 'ArrowRight':
+                    break;
+                case 'ArrowLeft':
+                    break;
+                case 'Backspace':
+                    if( this.charPos > 0 ) {
+                        this.text.text = this.text.text.substr(0,this.charPos) + this.text.text.substr(this.charPos+1);
+                        this.charPos--;
+                    }
+                    this.paper.redraw()
+                    break;
+                case 'Enter':
+                    if( e.ctrlKey ) {
+                        this.paper.objects.push(this.text)
+                        this.text = null
+                        this.paper.buffer.clear()
+                        this.paper.redraw()
+                        return
+                    } else {
+                        this.text.text += '\n'
+                    }
+                    this.charPos++
+                    break;
+                default:
+//                    if( e.ctrlKey && e.shiftKey && e.key="S" ) {
+//                        this.composing = true;
+//                    }
+                    if( e.ctrlKey ) {
+                        console.log("^"+e.key)
+                        console.log("+"+e.isComposing)
+                    } else {
+                        if( e.key.length == 1 ) {
+                            this.text.text += e.key
+                        } else {
+                            console.log(e.key)
+                        }
+                        this.charPos++
+                    }
+                    break;
+            }
+            console.log(this.text.text)
+            console.log("Char Pos : " + this.charPos)
+            this.paper.buffer.clear()
+            this.text.draw(this.paper.turtle)
+        }
+    }
+
+    cursorMove(e) { 
+        if(this.text) {
+            this.paper.objects.push(this.text)
+            this.text = null
+            this.paper.buffer.clear()
+            this.paper.redraw()
+        }
+    }
+}
+
+class Text {
+    constructor(row, col, text) {
+        this.row = row
+        this.col = col
+        this.text = text == undefined ? '' : text
+    }
+
+    draw(turtle) {
+        let lineNumber = 0
+        for( let line of this.text.split('\n') ) {
+            turtle.goto(this.row + lineNumber, this.col)
+            turtle.write(line)
+            lineNumber++
+        }
+    }
+}
+
+
 class BoxTool {
     constructor(paper) {
         this.paper = paper
     }
+
     cursorDown(e) { 
         this.box = new Box(e.row, e.col)
     }
+
     cursorUp(e) { 
         this.setCorner(e.row, e.col, e.ctrlKey)
         this.paper.objects.push(this.box)
@@ -330,6 +422,7 @@ class BoxTool {
         this.paper.buffer.clear()
         this.paper.redraw()
     }
+
     cursorMove(e) { 
         if(this.box) {
             this.setCorner(e.row, e.col, e.ctrlKey)
@@ -340,44 +433,69 @@ class BoxTool {
     }
 
     setCorner(row, col, square) {
+        let width = col - this.box.col
+        let height = row - this.box.row
+
         if( square ) {
-            const side = Math.min(
-                Math.abs(row - this.box.row0),
-                Math.abs(col - this.box.col0)
-            )
-            row = this.box.row0 + Math.sign(row - this.box.row0) * side
-            col = this.box.col0 + Math.sign(col - this.box.col0) * side
+            const side = Math.min(Math.abs(width), Math.abs(height))
+            width = Math.sign(width) * side
+            height = Math.sign(height) * side
         }
-        this.box.end(row,col)
+        this.box.setDim(width, height)
     }
 }
 
 class Box {
-    constructor(row0, col0, row1, col1) {
-        row1 = row1 == undefined ? row0 : row1
-        col1 = col1 == undefined ? col0 : col1
-        this.row0 = row0
-        this.col0 = col0
-        this.row1 = row1
-        this.col1 = col1
+    constructor(row, col, width, height) {
+        this.row = row
+        this.col = col
+        this.width = width == undefined ? 0 : width
+        this.height = height == undefined ? 0 : height
     }
 
-    end(row, col) {
-        this.row1 = row
-        this.col1 = col
+    setPoint(row, col) {
+        this.row = row
+        this.col = col
+    }
+
+    setDim(width, height) {
+        this.width = width
+        this.height = height
     }
 
     draw(turtle) {
-        const upperRow = Math.min(this.row0, this.row1)
-        const leftCol = Math.min(this.col0, this.col1)
-        const height = Math.max(0, Math.abs(this.row1 - this.row0)-1)
-        const width = Math.max(0, Math.abs(this.col1 - this.col0)-1)
-        turtle.direction = EAST
-        turtle.goto(upperRow, leftCol + 1)
-            .draw(width).turn(RIGHT)
-            .draw(height).turn(RIGHT)
-            .draw(width).turn(RIGHT)
-            .draw(height).turn(RIGHT)
+        let row = this.row
+        let col = this.col
+        let width = this.width
+        let height = this.height
+
+        if( width < 0 ) {
+            col += width
+            width = -width
+        }
+
+        if( height < 0 ) {
+            row += height
+            height = -height
+        }
+
+        turtle.goto(row, col)
+        if( width>0 && height>0 ) {
+            turtle.direction = EAST
+            turtle.step().goto(row, col+1)
+                .draw(width-1).turn( RIGHT )
+                .draw(height-1).turn( RIGHT )
+                .draw(width-1).turn( RIGHT )
+                .draw(height-1).turn( RIGHT )
+        }
+        else if( width > 0 ) {
+            turtle.direction = EAST
+            turtle.draw(width+1)
+        }
+        else if( height > 0 ) {
+            turtle.direction = SOUTH
+            turtle.draw(height+1)
+        }
     }
 }
 
@@ -401,11 +519,10 @@ class Cursor {
         }
     }
 
-
     keydown(e){
         e.row = this.row
         e.col = this.col
-        switch( e.code ) {
+        switch( e.key ) {
             case 'ArrowUp':
                 e.row -= 1
                 break;
@@ -431,6 +548,7 @@ class Paper {
         this.fontFamily = "Monospace"
         this.fontHeight = 40
         this.cursor = new Cursor(this)
+        this.objectBuffer = new Buffer()
         this.paperBuffer = new Buffer()
         this.toolBuffer = new Buffer()
         this.buffer = this.toolBuffer
@@ -484,7 +602,6 @@ class Paper {
 
     keydown(e) {
         e.preventDefault()
-        this.cursor.keydown(e)
         if( this.eventHandler && this.eventHandler.keydown ) {
             this.eventHandler.keydown(e)
         }
@@ -629,15 +746,18 @@ class Paper {
     }
 
     redrawCell(row, col) {
-        if( this.paperBuffer.haschar(row, col) ) {
-            this.drawChar(this.paperBuffer.getchar(row, col), row, col)
+        if( this.paperBuffer.has(row, col) ) {
+            this.drawChar(this.paperBuffer.get(row, col), row, col)
         } else {
             this.clearCell(this.clearCell(row, col))
         }
     }
 
     drawChar(c, row, col, style, backgroundStyle) {
-        this.buffer.putchar(c, row, col)
+        this.buffer.put(c, row, col)
+        if( this.currentObject ) {
+            this.objectBuffer.put(this.currentObject, row, col)
+        }
         const x = this.col2x(col)
         const y = this.row2y(row)
         this.ctx.fillStyle = backgroundStyle || 'white'
@@ -651,9 +771,14 @@ class Paper {
     drawObjects() {
         this.buffer = this.paperBuffer
         this.buffer.clear()
+        this.objectBuffer.clear()
         for( let object of this.objects ) {
+            console.log(',')
+            this.currentObject = object
+            console.log(this.currentObject)
             object.draw(this.turtle)
         }
+        this.currentObject = null
         this.buffer = this.toolBuffer
     }
 
@@ -719,8 +844,6 @@ function init() {
     paper = new Paper(document.getElementById('canvas'))
     toolbox = new Toolbox(document.querySelectorAll('.menu .icon'), paper)
     cursor = new Cursor(paper, toolbox)
-    //paper.setEventHandler(cursor)
-    //paper.eventHandler = logEventHandler
 }
 
 window.addEventListener('DOMContentLoaded',init)

@@ -110,12 +110,20 @@ class Buffer {
   constructor(backgroundChar = ' ') {
     this.backgroundChar = backgroundChar
     this.rows = new Map()
+    this.minRow = Number.MAX_SAFE_INTEGER
+    this.maxRow = Number.MIN_SAFE_INTEGER
+    this.minCol = Number.MAX_SAFE_INTEGER
+    this.maxCol = Number.MIN_SAFE_INTEGER
     this.width = 0
     this.height = 0
   }
 
   clear() {
     this.rows.clear()
+    this.minRow = Number.MAX_SAFE_INTEGER
+    this.maxRow = Number.MIN_SAFE_INTEGER
+    this.minCol = Number.MAX_SAFE_INTEGER
+    this.maxCol = Number.MIN_SAFE_INTEGER
     this.width = 0
     this.height = 0
   }
@@ -125,8 +133,23 @@ class Buffer {
       this.rows.set(row, new Map())
     }
     this.rows.get(row).set(col, o)
-    this.height = Math.max(this.height, row+1)
-    this.width = Math.max(this.width, col+1)
+    this.minRow = Math.min(this.minRow, row)
+    this.maxRow = Math.max(this.maxRow, row)
+    this.minCol = Math.min(this.minCol, col)
+    this.maxCol = Math.max(this.maxCol, col)
+    this.height = this.maxRow - this.minRow + 1
+    this.width = this.maxCol - this.minCol + 1
+  }
+
+  delete(row, col) {
+    if( this.rows.has(row) ) {
+      if( this.rows.get(row).has(col) ) {
+        this.rows.get(row).delete(col)
+        if( this.rows.get(row).size == 0 ) {
+          this.rows.delete(row)
+        }
+      }
+    }
   }
 
   get(row, col) {
@@ -140,12 +163,18 @@ class Buffer {
 
   toString() {
     let s = ''
-    for( let r = 0; r < this.height; r++ ) {
-      for( let c = 0; c < this.width; c++ ) {
+    for( let r = this.minRow; r <= this.maxRow; r++) {
+      for( let c = this.minCol; c <= this.maxCol; c++) {
         s = s + this.get(r, c)
       }
       s = s + '\n'
     }
+    // for( let r = 0; r < this.height; r++ ) {
+      // for( let c = 0; c < this.width; c++ ) {
+        // s = s + this.get(r, c)
+      // }
+      // s = s + '\n'
+    // }
     return s
   }
 }
@@ -169,6 +198,7 @@ class Turtle {
 
   putchar(c) {
     if( c ) this.paper.drawChar(c, this.row, this.col, this.style, this.backgroundStyle)
+    return this
   }
 
   write(s) {
@@ -466,34 +496,40 @@ class TextTool extends AbstractTool{
   }
 
   cursorClick(e) {
-    if( !this.text ) {
-      this.text = new Text(e.row, e.col)
-      this.charPos = 0;
-      this.paper.cursor.setKeyboard()
-      this.paper.cursor.move(e)
-      this.drawing = true
+    if( this.text ) {
+      this.finish()
     }
+    this.text = new Text(e.row, e.col)
+    this.charPos = 0;
+    this.paper.cursor.setKeyboard()
+    this.paper.cursor.move(e)
+    this.drawing = true
   }
 
   keydown(e){
     if( !this.drawing ) {
       super.keydown(e)
     } else {
+      console.log( e.key )
       switch( e.key ) {
         case 'ArrowUp':
+          this.paper.cursor.move({row: this.paper.cursor.row - 1, col: this.paper.cursor.col})
           break;
         case 'ArrowDown':
+          this.paper.cursor.move({row: this.paper.cursor.row + 1, col: this.paper.cursor.col})
           break;
         case 'ArrowRight':
+          this.paper.cursor.move({row: this.paper.cursor.row, col: this.paper.cursor.col + 1})
           break;
         case 'ArrowLeft':
+          this.paper.cursor.move({row: this.paper.cursor.row, col: this.paper.cursor.col - 1})
+          break;
+        case 'Delete':
+          this.text.delete(this.paper.cursor.row, this.paper.cursor.col)
           break;
         case 'Backspace':
-          if( this.charPos > 0 ) {
-            this.text.text = this.text.text.substr(0,this.charPos-1) + this.text.text.substr(this.charPos);
-            this.charPos--;
-          }
-          //          this.paper.redraw() // <- necessary?
+          this.paper.cursor.move({row: this.paper.cursor.row, col: this.paper.cursor.col - 1})
+          this.text.delete(this.paper.cursor.row, this.paper.cursor.col)
           break;
         case 'Escape':
           this.cancel()
@@ -503,9 +539,10 @@ class TextTool extends AbstractTool{
             this.finish()
             return
           } else {
-            this.text.text += '\n'
+            this.paper.cursor.move({
+              row: this.paper.cursor.row + 1,
+              col: this.text.col})
           }
-          this.charPos++
           break;
         default:
 //            if( e.ctrlKey && e.shiftKey && e.key="S" ) {
@@ -516,20 +553,17 @@ class TextTool extends AbstractTool{
             console.log("+"+e.isComposing)
           } else {
             if( e.key.length == 1 ) {
-              this.text.text += e.key
-              this.charPos++
+              this.text.put(e.key, this.paper.cursor.row, this.paper.cursor.col)
+              this.paper.cursor.move({row: this.paper.cursor.row, col: this.paper.cursor.col + 1})
             } else {
               console.log(e.key)
             }
           }
           break;
       }
-      console.log(`'${this.text.text}'`)
-      console.log(`Char Pos : ${this.charPos}`)
       this.paper.buffer.clear()
-      const cursorPos = this.text.draw(this.paper.turtle, this.charPos)
-      console.log(`Cursor Pos : (${cursorPos.row}, ${cursorPos.col})`)
-      this.paper.cursor.move(cursorPos)
+      this.text.draw(this.paper.turtle)
+      this.paper.cursor.draw()
     }
   }
 
@@ -539,7 +573,7 @@ class TextTool extends AbstractTool{
   }
 
   finish() {
-    if( this.text && this.text.text.length > 0 ) {
+    if( this.text && (this.text.buffer.width > 0 || this.text.buffer.height > 0)) {
       this.paper.objects.push(this.text)
     }
     this.charPos = 0
@@ -552,44 +586,36 @@ class TextTool extends AbstractTool{
     this.text = null
     this.drawing = false
   }
-
-  cursorMove(e) {
-    if(!this.drawing) {
-      // Move the cursor unless we are writing
-      super.cursorMove(e)
-    }
-  }
 }
 
 class Text extends DrawObject {
-  constructor(row, col, text) {
+  constructor(row, col) {
     super(row, col)
-    this.text = text == undefined ? '' : text
+    this.buffer = new Buffer()
   }
 
-  draw(turtle, charPos) {
-    const cursorPos = {row:0, col:0}
-    let row = this.row
-    let width = 0
-    for( let line of this.text.split('\n') ) {
-      if( charPos != null  ) {
-        if( charPos <= line.length ) {
-          cursorPos.row = row
-          cursorPos.col = this.col + charPos
-          charPos = null
-        } else {
-          // +1 to account for the newline
-          charPos -= (line.length + 1)
-        }
-      }
-      width = Math.max(line.length, width)
-      turtle.goto(row, this.col)
-      turtle.write(line)
-      row++
-    }
-    this.height = row - this.row
-    this.width = width
-    return cursorPos
+  put(key, row, col) {
+    this.buffer.put(key, row, col)
+    this.row = this.buffer.minRow
+    this.col = this.buffer.minCol
+    this.width = this.buffer.width
+    this.height = this.buffer.height
+  }
+
+  delete(row, col) {
+    this.buffer.delete(row, col)
+    this.row = this.buffer.minRow
+    this.col = this.buffer.minCol
+    this.width = this.buffer.width
+    this.height = this.buffer.height
+  }
+
+  draw(turtle) {
+    this.buffer.rows.forEach( (cols, row) => {
+      cols.forEach( (char, col) => {
+        turtle.goto(row,col).write(char)
+      })
+    })
   }
 }
 
@@ -732,6 +758,7 @@ class Cursor {
       this.row = e.row
       this.col = e.col
       this.paper.drawCursor(this.cursorChar[this.cursorMode], this.row, this.col)
+      updatePositionStatus(this.row, this.col)
     }
   }
 
@@ -1083,6 +1110,10 @@ class Toolbox {
     this.paper.setEventHandler(this.selectedTool)
     console.log(this.selectedTool)
   }
+}
+
+function updatePositionStatus(row, col) {
+  document.getElementById('position').innerText = `(${row.toString().padStart(3,' ')},${col.toString().padStart(3,' ')})`
 }
 
 let paper, toolbox

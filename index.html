@@ -24,6 +24,20 @@ canvas {
 	position: fixed;
 }
 
+#status {
+  background: rgba(255, 255, 255, 0.5);
+	backdrop-filter: blur(1px);
+	z-index: 100;
+	width: 100%;
+	position: fixed;
+  bottom: 0;
+  padding: 5px;
+  font-family: monospace;
+  font-size: 20px;
+  height: 20px;
+  line-height: 20px;
+}
+
 .menu .icon {
   position: relative;
   margin: 4px;
@@ -54,6 +68,7 @@ canvas {
       <img type="image/svg+xml" src="text.svg" class="icon" data-tool="TextTool"  />
     </div>
     <canvas id="canvas" width="150" height="150"></canvas>
+    <div id="status"><span id="position">(   ,   )</span><span id="help"></span></div>
     <div id="canvasStyle">
       <div id="grid"></div>
     </div>

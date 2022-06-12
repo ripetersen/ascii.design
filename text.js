@@ -12,6 +12,9 @@ export class Text extends DrawObject {
     return this.buffer.rows.size==0
   }
 
+  bufferRow(row) {return row -= this.row}
+  bufferCol(col) {return col -= this.col}
+
   put(key, row, col) {
     row -= this.row
     col -= this.col

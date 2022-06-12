@@ -11,6 +11,10 @@ class PenLine extends Text {
   put(row, col) {
     super.put(this.char, row, col)
   }
+
+  contains(row, col) {
+    return super.contains(row, col) && this.buffer.has(this.bufferRow(row),this.bufferCol(col))
+  }
 }
 
 export class PenTool extends AbstractTool {

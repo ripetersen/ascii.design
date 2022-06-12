@@ -9,15 +9,27 @@ export class AbstractTool {
     switch( e.key ) {
       case 'ArrowUp':
         this.paper.cursor.up()
+        e.row=this.paper.cursor.row
+        e.col=this.paper.cursor.col
+        this.cursorMove(e)
         break;
       case 'ArrowDown':
         this.paper.cursor.down()
+        e.row=this.paper.cursor.row
+        e.col=this.paper.cursor.col
+        this.cursorMove(e)
         break;
       case 'ArrowRight':
         this.paper.cursor.right()
+        e.row=this.paper.cursor.row
+        e.col=this.paper.cursor.col
+        this.cursorMove(e)
         break;
       case 'ArrowLeft':
         this.paper.cursor.left()
+        e.row=this.paper.cursor.row
+        e.col=this.paper.cursor.col
+        this.cursorMove(e)
         break;
     }
   }
@@ -52,10 +64,10 @@ export class DrawObject {
   toggleSelect() { this.selected = !this.selected }
   isSelected() { return this.selected }
 
-  get right()  { return Math.max(this.col, this.col+this.width-1) }
-  get left()   { return Math.min(this.col, this.col+this.width-1) }
-  get top()    { return Math.min(this.row, this.row+this.height-1) }
-  get bottom() { return Math.max(this.row, this.row+this.height-1) }
+  get left() { return this.col }
+  get right() { return this.col+this.width-Math.sign(this.width) }
+  get top() { return this.row }
+  get bottom() { return this.row+this.height-Math.sign(this.height) }
 
   contains(row, col) {
     return row >= this.top  && row <= this.bottom &&

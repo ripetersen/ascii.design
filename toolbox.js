@@ -24,13 +24,21 @@ export class Toolbox {
       this.tools.set(toolName, tool)
       this.shortcuts.set(toolName.substring(0,1).toLowerCase(), toolName)
     })
-    this.iconClick( {target: icons[0]})
+    this.iconClick({target: icons[0]})
+
+    document.addEventListener("keydown", (e) => this.keydown(e))
   }
 
   iconClick(e) {
     this.startTool(e.target.dataset.tool)
   }
 
+  keydown(e) {
+    e.preventDefault()
+    if( e.ctrlKey ) {
+      this.selectTool(e.key)
+    }
+  }
 
   edit(o, e) {
     var editor = Array.from(this.tools.values())
@@ -42,9 +50,12 @@ export class Toolbox {
     this.startTool(editor.constructor.name)
     editor.edit(o, e)
   }
+
   selectTool(shortcut) {
-    console.log(`'${shortcut}'`)
-    this.startTool(this.shortcuts.get(shortcut))
+    const toolName = this.shortcuts.get(shortcut)
+    console.log(`'${shortcut}' -> '${toolName}'`)
+    if(toolName==null) return
+    this.startTool(toolName)
   }
 
   startTool(toolName) {

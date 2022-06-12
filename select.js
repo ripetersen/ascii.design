@@ -19,9 +19,9 @@ export class SelectTool extends AbstractTool {
         this.paper.redraw()
         this.paper.cursor.draw()
         break;
+      case ' ':
       case 'Enter':
-        console.log("Enter")
-        console.log(`Has Focus? ${document.hasFocus()}`)
+        this.cursorClick(e)
         break;
       case 'ArrowUp':
         this.paper.selectedObjects().map(o => o.row -= 1)

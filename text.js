@@ -1,7 +1,7 @@
 import {AbstractTool, DrawObject} from './abstractTool.js'
 import {Buffer} from './buffer.js'
 
-class Text extends DrawObject {
+export class Text extends DrawObject {
   constructor(row, col) {
     super(row, col)
     this.chars = new Map()
@@ -71,7 +71,6 @@ export class TextTool extends AbstractTool{
     this.paper.cursor.setKeyboard()
     this.paper.cursor.move(e)
     this.drawing = true
-
   }
 
   keydown(e){

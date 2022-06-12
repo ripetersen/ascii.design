@@ -1,6 +1,21 @@
-import {AbstractTool, DrawObject} from './abstractTool.js'
+import {AbstractTool} from './abstractTool.js'
+import {Text} from './text.js'
+
+class PenLine extends Text {
+  constructor(row, col) {
+    super(row, col)
+    this.char="*"
+    this.put(row, col)
+  }
+
+  put(row, col) {
+    super.put(this.char, row, col)
+  }
+}
 
 export class PenTool extends AbstractTool {
+  static produces = PenLine
+
   cancel() {
     this.penline = null
     this.finish();
@@ -16,6 +31,30 @@ export class PenTool extends AbstractTool {
     this.paper.redraw()
   }
 
+  keydown(e){
+    if( !this.drawing ) {
+      switch( e.key ) {
+        case ' ':
+        case 'Enter':
+          this.cursorDown(e);
+          break;
+        default:
+          super.keydown(e)
+      }
+    } else {
+      switch( e.key ) {
+        case 'Enter':
+        case ' ':
+        case 'Escape':
+          this.cursorUp()
+          break;
+        default:
+          super.keydown(e)
+          break;
+      }
+    }
+  }
+
   cursorDown(e) {
     this.penline = new PenLine(e.row, e.col)
     this.drawing = true;
@@ -27,7 +66,7 @@ export class PenTool extends AbstractTool {
 
   cursorMove(e) {
     if(this.drawing) {
-      this.penline.add(e.row, e.col)
+      this.penline.put(e.row, e.col)
       this.paper.redraw()
       this.paper.buffer.clear()
       this.penline.draw(this.paper.turtle)
@@ -36,33 +75,3 @@ export class PenTool extends AbstractTool {
   }
 }
 
-class PenLine extends DrawObject {
-  constructor(row, col) {
-    super(row, col)
-    this.row = row
-    this.col = col
-    this.rows = new Map()
-    this.add(row, col)
-  }
-
-  add(row, col) {
-    let cols = this.rows.get(row)
-    if( !cols ) {
-      cols = new Set()
-      this.rows.set(row, cols)
-    }
-    cols.add(col)
-  }
-
-  draw(turtle) {
-    for( let [row,cols] of  this.rows.entries()) {
-      for(let col of cols) {
-        turtle.goto(row,col).write('*')
-      }
-    }
-  }
-
-  contains(row, col) {
-    return this.rows.has(row) && this.rows.get(row).has(col)
-  }
-}

@@ -323,6 +323,7 @@ export class Paper {
     this.drawGrid()
     this.drawObjects()
     this.highlight()
+    this.cursor.draw()
   }
 }
 

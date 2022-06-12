@@ -2,6 +2,30 @@
 <html>
 	<head>
 	  <title>ASCII Design</title>
+    <meta http-equiv="Content-Security-Policy" content="
+  default-src
+    'self';
+  connect-src
+    'self';
+  script-src
+    'self'
+    'unsafe-eval'
+    'unsafe-inline';
+  font-src
+    'self';
+  frame-src
+    'self';
+  img-src
+    'self'
+    data:
+    blob:;
+  style-src
+    'self'
+    'unsafe-inline';
+  worker-src
+    'self';
+    ">
+
     <link rel="stylesheet" type="text/css" href="canvas.css">
     <style>
 * { margin:0; padding:0; } /* to remove the top and left whitespace */
@@ -57,7 +81,18 @@ canvas {
   border: 2px solid #7c7c7c
 }
     </style>
-    <script src="ascii.design.js" charset="UTF-8"></script>
+    <script>
+      function init() {
+        import('/ascii.design.js').then(ascii_design => {
+          ascii_design.init()
+          window['ascii_design'] = ascii_design
+        })
+      }
+      window.addEventListener('DOMContentLoaded',init)
+    </script>
+    <!--
+       <script src="ascii.design.js" charset="UTF-8"></script>
+       -->
 	</head>
 	<body>
     <div class="menu">

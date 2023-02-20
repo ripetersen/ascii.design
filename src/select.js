@@ -1,6 +1,14 @@
 import {AbstractTool} from './abstractTool.js'
 
 export class SelectTool extends AbstractTool {
+  constructor(paper) {
+    super(paper)
+    this.drag = {
+      row: null,
+      col: null,
+      dragging: false
+    }
+  }
   keydown(e){
     switch( e.key ) {
       case 'Backspace':
@@ -43,10 +51,43 @@ export class SelectTool extends AbstractTool {
     super.keydown(e)
   }
 
-  /*
-   * SHIFT : multiselect
-   */
+  cursorDown(e) {
+    this.drag.row = e.row
+    this.drag.col = e.col
+    this.drag.dragging = true
+    this.drag.dragged = false
+    super.cursorDown(e)
+  }
+
+  cursorUp(e) {
+    this.drag.row = null
+    this.drag.col = null
+    this.drag.dragging = false
+    super.cursorUp(e)
+  }
+
+  cursorMove(e) {
+    if(this.drag.dragging) {
+      this.drag.dragged = true
+      let deltaRow = e.row - this.drag.row
+      let deltaCol = e.col - this.drag.col
+      this.drag.row = e.row
+      this.drag.col = e.col
+      this.paper.selectedObjects().map(o => {
+        o.row += deltaRow;
+        o.col += deltaCol;
+      })
+      this.paper.redraw()
+    }
+    super.cursorMove(e)
+  }
+
   cursorClick(e) {
+    if(this.drag.dragged) {
+      this.drag.dragged = false;
+      return;
+    }
+
     if( e.shiftKey ) {
       // multi select
       this.paper.objectsAt(e.row, e.col).map(o => o.toggleSelect())

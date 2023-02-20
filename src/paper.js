@@ -295,9 +295,13 @@ export class Paper {
 
   highlight() {
     this.selectedObjects().forEach(o => {
-      this.ctx.strokeStyle = '#0000ff'
+      this.ctx.strokeStyle = '#fcba03'
+      this.ctx.fillStyle = '#000000'
+      this.ctx.filter='blur(50%)'
       this.ctx.lineWidth = 4
+      //      this.ctx.fillRect(this.col2x(o.left), this.row2y(o.top), this.col2x(Math.abs(o.width)), this.row2y(Math.abs(o.height)))
       this.ctx.strokeRect(this.col2x(o.left), this.row2y(o.top), this.col2x(Math.abs(o.width)), this.row2y(Math.abs(o.height)))
+      this.ctx.filter='none'
     })
   }
 

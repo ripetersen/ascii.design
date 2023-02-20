@@ -2,12 +2,7 @@ export class Buffer {
   constructor(backgroundChar = ' ') {
     this.backgroundChar = backgroundChar
     this.rows = new Map()
-    this.minRow = Number.MAX_SAFE_INTEGER
-    this.maxRow = Number.MIN_SAFE_INTEGER
-    this.minCol = Number.MAX_SAFE_INTEGER
-    this.maxCol = Number.MIN_SAFE_INTEGER
-    this.width = 0
-    this.height = 0
+    this.clear()
   }
 
   clear() {
@@ -19,18 +14,21 @@ export class Buffer {
     this.width = 0
     this.height = 0
   }
+  calcMinMax() {
+    this.maxRow = Math.max(...Array.from(this.rows.keys()))
+    this.minRow = Math.min(...Array.from(this.rows.keys()))
+    this.maxCol = Math.max(...Array.from(this.rows.values()).map(cols => Math.max(...Array.from(cols.keys()))))
+    this.minCol = Math.min(...Array.from(this.rows.values()).map(cols => Math.min(...Array.from(cols.keys()))))
+    this.height = this.maxRow - this.minRow + 1
+    this.width = this.maxCol - this.minCol + 1
+  }
 
   put(o, row, col) {
     if( !this.rows.has(row) ) {
       this.rows.set(row, new Map())
     }
     this.rows.get(row).set(col, o)
-    this.minRow = Math.min(this.minRow, row)
-    this.maxRow = Math.max(this.maxRow, row)
-    this.minCol = Math.min(this.minCol, col)
-    this.maxCol = Math.max(this.maxCol, col)
-    this.height = this.maxRow - this.minRow + 1
-    this.width = this.maxCol - this.minCol + 1
+    this.calcMinMax()
   }
 
   delete(row, col) {
@@ -41,8 +39,10 @@ export class Buffer {
           this.rows.delete(row)
         }
       }
+      this.calcMinMax()
     }
   }
+
 
   get(row, col) {
     return this.rows.has(row) && this.rows.get(row).has(col) ?

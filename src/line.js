@@ -33,7 +33,7 @@ export class LineTool extends AbstractTool {
         this.cursorMove({row: cursorPosition.row, col: cursorPosition.col - 1})
         break;
       case 'Escape':
-        this.cancel()
+        this.finish()
         break;
       case ' ':
       case 'Enter':

@@ -56,8 +56,22 @@ export class SelectTool extends AbstractTool {
     this.drag.row = e.row
     this.drag.col = e.col
     this.drag.dragged = false
-    const underCursor = this.paper.objectsAt(e.row, e.col)
-    this.drag.dragging = underCursor.some(o => o.isSelected())
+    const hit = this.paper.objectsAt(e.row, e.col)[0]
+    if (hit) {
+      if (e.shiftKey) {
+        hit.toggleSelect()
+      } else if (!hit.isSelected()) {
+        // Clicking an unselected object: select it immediately so drag works in one gesture
+        this.paper.allObjects().forEach(o => o.deselect())
+        hit.select()
+      }
+      // If hit is already selected (possibly multi-select), keep all selected for dragging
+      this.drag.dragging = true
+    } else {
+      this.drag.dragging = false
+    }
+    this.paper.redraw()
+    this.paper.cursor.draw()
     super.cursorDown(e)
   }
 
@@ -85,23 +99,19 @@ export class SelectTool extends AbstractTool {
   }
 
   cursorClick(e) {
-    if(this.drag.dragged) {
-      this.drag.dragged = false;
-      return;
+    if (this.drag.dragged) {
+      this.drag.dragged = false
+      return
     }
-
-    if( e.shiftKey ) {
-      // multi select
-      this.paper.objectsAt(e.row, e.col).map(o => o.toggleSelect())
-    } else {
-      // single-select
-      var selected = this.paper.objectsAt(e.row, e.col)[0]
-      var selectedObjects = this.paper.selectedObjects();
-      if(selectedObjects.length > 1 || selected != selectedObjects[0]) {
-        this.paper.selectedObjects().map(o => o.deselect())
-        if(selected != null) selected.select()
-      } else {
-        if(selected != null) selected.toggleSelect()
+    const hit = this.paper.objectsAt(e.row, e.col)[0]
+    if (!e.shiftKey) {
+      if (!hit) {
+        // Click on empty space: deselect all
+        this.paper.allObjects().forEach(o => o.deselect())
+      } else if (this.paper.selectedObjects().length > 1) {
+        // Click (no drag) on one of multiple selected objects: reduce to just this one
+        this.paper.allObjects().forEach(o => o.deselect())
+        hit.select()
       }
     }
     this.paper.redraw()

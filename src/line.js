@@ -1,5 +1,39 @@
 import {AbstractTool, DrawObject} from './abstractTool.js'
 
+/* eslint-disable-next-line no-unused-vars */
+class Line extends DrawObject {
+  constructor(row, col) {
+    super(row, col)
+    this.row = row
+    this.col = col
+    this.points = [{row:0, col:0}, {row:0, col:0}]
+  }
+
+  add(row, col) {
+    this.points.push({row:row-this.row, col:col-this.col})
+  }
+
+  update(row, col) {
+    this.points[this.points.length-1].row = row-this.row
+    this.points[this.points.length-1].col = col-this.col
+  }
+
+  draw(turtle) {
+    turtle.goto( this.points[0].row+this.row, this.points[0].col+this.col )
+    turtle.trip.reset()
+    turtle.face(this.points[1].row+this.row, this.points[1].col+this.col)
+
+    for(let n=1; n<this.points.length; n++) {
+      turtle.drawTo(this.points[n].row+this.row, this.points[n].col+this.col)
+    }
+    this.width = turtle.trip.width
+    this.height = turtle.trip.height
+    //    this.col = turtle.trip.min.col
+    // this.row = turtle.trip.min.row
+    turtle.draw()
+  }
+}
+
 export class LineTool extends AbstractTool {
   cancel() {
     this.line = null
@@ -74,8 +108,8 @@ export class LineTool extends AbstractTool {
   cursorMove(e) {
     if(this.drawing) {
       let n = this.line.points.length - 2
-      let row = e.row
-      let col = e.col
+      let row = e.row-this.line.row
+      let col = e.col-this.line.col
       let height = row - this.line.points[n].row
       let width = col - this.line.points[n].col
       if(Math.abs(height) > Math.abs(width)) {
@@ -92,36 +126,3 @@ export class LineTool extends AbstractTool {
   }
 }
 
-/* eslint-disable-next-line no-unused-vars */
-class Line extends DrawObject {
-  constructor(row, col) {
-    super(row, col)
-    this.row = row
-    this.col = col
-    this.points = [{row, col}, {row,col}]
-  }
-
-  add(row, col) {
-    this.points.push({row, col})
-  }
-
-  update(row, col) {
-    this.points[this.points.length-1].row = row
-    this.points[this.points.length-1].col = col
-  }
-
-  draw(turtle) {
-    turtle.goto( this.points[0].row, this.points[0].col )
-    turtle.trip.reset()
-    turtle.face(this.points[1].row, this.points[1].col)
-
-    for(let n=1; n<this.points.length; n++) {
-      turtle.drawTo(this.points[n].row, this.points[n].col)
-    }
-    this.width = turtle.trip.width
-    this.height = turtle.trip.height
-    this.col = turtle.trip.min.col
-    this.row = turtle.trip.min.row
-    turtle.draw()
-  }
-}

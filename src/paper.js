@@ -233,7 +233,7 @@ export class Paper {
     } else if( this.paperBuffer.has(row, col) ) {
       this.drawChar(this.paperBuffer.get(row, col), row, col)
     } else {
-      this.clearCell(this.clearCell(row, col))
+      this.clearCell(row, col)
     }
     this.buffer = buffer
   }
@@ -266,12 +266,9 @@ export class Paper {
   }
 
   deleteObject(...objects) {
-    objects.map(o => {
-      if(this._objectMap.has(o)) {
-        this._objects.splice(this._objectMap.get(o),1)
-        this._objectMap.delete(o)
-      }
-    })
+    const toDelete = new Set(objects)
+    this._objects = this._objects.filter(o => !toDelete.has(o))
+    toDelete.forEach(o => this._objectMap.delete(o))
   }
 
   objectsAt(row, col) {
@@ -294,14 +291,17 @@ export class Paper {
   }
 
   highlight() {
+    const cellW = this.charSize.width + 2 * this.padding.x
+    const cellH = this.charSize.height + 2 * this.padding.y
     this.selectedObjects().forEach(o => {
       this.ctx.strokeStyle = '#fcba03'
-      this.ctx.fillStyle = '#000000'
-      this.ctx.filter='blur(50%)'
       this.ctx.lineWidth = 4
-      //      this.ctx.fillRect(this.col2x(o.left), this.row2y(o.top), this.col2x(Math.abs(o.width)), this.row2y(Math.abs(o.height)))
-      this.ctx.strokeRect(this.col2x(o.left), this.row2y(o.top), this.col2x(Math.abs(o.width)), this.row2y(Math.abs(o.height)))
-      this.ctx.filter='none'
+      this.ctx.strokeRect(
+        this.col2x(o.left),
+        this.row2y(o.top),
+        Math.abs(o.width) * cellW,
+        Math.abs(o.height) * cellH
+      )
     })
   }
 

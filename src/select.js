@@ -9,6 +9,7 @@ export class SelectTool extends AbstractTool {
       dragging: false
     }
   }
+
   keydown(e){
     switch( e.key ) {
       case 'Backspace':
@@ -54,8 +55,9 @@ export class SelectTool extends AbstractTool {
   cursorDown(e) {
     this.drag.row = e.row
     this.drag.col = e.col
-    this.drag.dragging = true
     this.drag.dragged = false
+    const underCursor = this.paper.objectsAt(e.row, e.col)
+    this.drag.dragging = underCursor.some(o => o.isSelected())
     super.cursorDown(e)
   }
 

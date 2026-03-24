@@ -4,7 +4,7 @@ export class AbstractTool {
     this.drawing = false;
   }
 
-  /* Add point if the direction changes by key chess*/
+  /* Add point if the direction changes by key press */
   keydown(e){
     switch( e.key ) {
       case 'ArrowUp':
@@ -69,8 +69,12 @@ export class DrawObject {
   get top() { return this.row }
   get bottom() { return this.row+this.height-Math.sign(this.height) }
 
-  contains(row, col) {
+  containsBoundingBox(row, col) {
     return row >= this.top  && row <= this.bottom &&
-           col >= this.left && col <=this.right
+           col >= this.left && col <= this.right
+  }
+
+  contains(row, col) {
+    return this.containsBoundingBox(row, col)
   }
 }

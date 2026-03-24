@@ -1,7 +1,7 @@
 import {AbstractTool} from './abstractTool.js'
 import {Text} from './text.js'
 
-class PenLine extends Text {
+export class PenLine extends Text {
   constructor(row, col) {
     super(row, col)
     this.char="*"
@@ -13,7 +13,13 @@ class PenLine extends Text {
   }
 
   contains(row, col) {
-    return super.contains(row, col) && this.buffer.has(this.bufferRow(row),this.bufferCol(col))
+    return super.contains(row, col)
+  }
+
+  toJSON() {
+    const data = super.toJSON()
+    data.type = 'PenLine'
+    return data
   }
 }
 

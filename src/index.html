@@ -27,63 +27,10 @@
     ">
 
     <link rel="stylesheet" type="text/css" href="canvas.css">
-    <style>
-* { margin:0; padding:0; } /* to remove the top and left whitespace */
-
-html, body { width:100%; height:100%; } /* just to be sure these are full screen*/
-
-canvas {
-    display:block;
-    cursor: none;
-}
-
-.menu {
-  padding-left: 6px;
-  padding-top: 4px;
-	box-shadow: 0 0 10px rgba(0, 0, 0, 1);
-  background: rgba(255, 255, 255, 0.5);
-	backdrop-filter: blur(1px);
-	z-index: 100;
-	width: 100%;
-	position: fixed;
-}
-
-#status {
-  background: rgba(255, 255, 255, 0.5);
-	backdrop-filter: blur(1px);
-	z-index: 100;
-	width: 100%;
-	position: fixed;
-  bottom: 0;
-  padding: 5px;
-  font-family: monospace;
-  font-size: 20px;
-  height: 20px;
-  line-height: 20px;
-}
-
-.menu .icon {
-  position: relative;
-  margin: 4px;
-  padding: 2px;
-	display: inline-block;
-  border: 2px solid rgba(255,255,255,0);
-	width: 32px;
-	height: 32px;
-}
-
-.menu .icon.selected {
-  filter: invert(100%);
-  background: white;
-}
-
-.menu .icon:hover {
-  border: 2px solid #7c7c7c
-}
-    </style>
+    <link rel="stylesheet" type="text/css" href="ascii.design.css">
     <script>
       function init() {
-        import('/ascii.design.js').then(ascii_design => {
+        import('./ascii.design.js').then(ascii_design => {
           ascii_design.init()
           window['ascii_design'] = ascii_design
         })
@@ -101,9 +48,10 @@ canvas {
       <img type="image/svg+xml" src="line.svg" class="icon" data-tool="LineTool"  />
       <img type="image/svg+xml" src="pen.svg" class="icon" data-tool="PenTool" />
       <img type="image/svg+xml" src="text.svg" class="icon" data-tool="TextTool"  />
+      <img src="clear.svg" class="action" data-action="clear" title="Clear canvas" />
     </div>
     <canvas id="canvas" width="150" height="150"></canvas>
-    <div id="status"><span id="position">(   ,   )</span><span id="help"></span></div>
+    <div id="status"><span id="position">(   ,   )</span><span id="zoom">100%</span><span id="help"></span></div>
     <div id="canvasStyle">
       <div id="grid"></div>
     </div>

@@ -4,7 +4,8 @@
   "description": "Draw ASCII art",
   "main": "ascii.design.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node tests/run.js",
+    "start": "python -m http.server 8000 --directory ./src/"
   },
   "repository": {
     "type": "git",
@@ -16,8 +17,9 @@
     "url": "https://github.com/ripetersen/ascii.design/issues"
   },
   "homepage": "https://github.com/ripetersen/ascii.design#readme",
-  "dependencies": {
-    "@babel/eslint-parser": "^7.18.2",
-    "eslint": "^8.17.0"
+  "devDependencies": {
+    "@babel/eslint-parser": "^7.19.1",
+    "eslint": "^8.34.0",
+    "playwright": "^1.58.2"
   }
 }

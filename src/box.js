@@ -1,6 +1,6 @@
 import {AbstractTool, DrawObject} from './abstractTool.js'
 
-class Box extends DrawObject {
+export class Box extends DrawObject {
   get empty() {
     return this.width==1 || this.height==1
   }
@@ -33,6 +33,10 @@ class Box extends DrawObject {
     turtle.drawTo(this.row + height, this.col)
     turtle.drawTo(this.row         , this.col)
     turtle.drawTo(this.row         , this.col + width)
+  }
+
+  toJSON() {
+    return { type: 'Box', row: this.row, col: this.col, width: this.width, height: this.height }
   }
 }
 
@@ -67,8 +71,10 @@ export class BoxTool extends AbstractTool {
       switch( e.key ) {
         case 'Enter':
         case ' ':
-        case 'Esc':
           this.cursorUp(e);
+          break;
+        case 'Escape':
+          this.cancel();
           break;
         default:
           super.keydown(e)
